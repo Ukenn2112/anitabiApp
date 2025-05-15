@@ -10,9 +10,22 @@
 		13126DBA2DD0AFA9007B3B65 /* anitabi.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = anitabi.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		13126DCC2DD0B042007B3B65 /* Exceptions for "anitabi" folder in "anitabi" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 13126DB92DD0AFA9007B3B65 /* anitabi */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		13126DBC2DD0AFA9007B3B65 /* anitabi */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				13126DCC2DD0B042007B3B65 /* Exceptions for "anitabi" folder in "anitabi" target */,
+			);
 			path = anitabi;
 			sourceTree = "<group>";
 		};
@@ -86,11 +99,13 @@
 				};
 			};
 			buildConfigurationList = 13126DB52DD0AFA9007B3B65 /* Build configuration list for PBXProject "anitabi" */;
-			developmentRegion = en;
+			developmentRegion = "zh-Hans";
 			hasScannedForEncodings = 0;
 			knownRegions = (
-				en,
 				Base,
+				"zh-Hans",
+				en,
+				ja,
 			);
 			mainGroup = 13126DB12DD0AFA9007B3B65;
 			minimizedProjectReferenceProxies = 1;
@@ -184,6 +199,7 @@
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
 			name = Debug;
@@ -240,6 +256,7 @@
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_EMIT_LOC_STRINGS = YES;
 				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;
@@ -249,12 +266,19 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = anitabi/anitabi.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"anitabi/Preview Content\"";
 				DEVELOPMENT_TEAM = 4H88DC6RMN;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = anitabi/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "动画巡礼";
+				INFOPLIST_KEY_NSCameraUsageDescription = "需要使用您的相机来拍摄照片并与动画场景进行对比";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "显示当前用户位置";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "将图片保存至相册";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "将图片保存至相册";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -278,12 +302,19 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = anitabi/anitabi.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"anitabi/Preview Content\"";
 				DEVELOPMENT_TEAM = 4H88DC6RMN;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = anitabi/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "动画巡礼";
+				INFOPLIST_KEY_NSCameraUsageDescription = "需要使用您的相机来拍摄照片并与动画场景进行对比";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "显示当前用户位置";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "将图片保存至相册";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "将图片保存至相册";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
