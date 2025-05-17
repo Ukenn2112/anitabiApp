@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		131272CE2DD86673007B3B65 /* UIOnboarding in Frameworks */ = {isa = PBXBuildFile; productRef = 131272CD2DD86673007B3B65 /* UIOnboarding */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		13126DBA2DD0AFA9007B3B65 /* anitabi.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = anitabi.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -36,6 +40,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				131272CE2DD86673007B3B65 /* UIOnboarding in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -78,6 +83,7 @@
 			);
 			name = anitabi;
 			packageProductDependencies = (
+				131272CD2DD86673007B3B65 /* UIOnboarding */,
 			);
 			productName = anitabi;
 			productReference = 13126DBA2DD0AFA9007B3B65 /* anitabi.app */;
@@ -109,6 +115,9 @@
 			);
 			mainGroup = 13126DB12DD0AFA9007B3B65;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				131272CC2DD86673007B3B65 /* XCRemoteSwiftPackageReference "UIOnboarding" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 13126DBB2DD0AFA9007B3B65 /* Products */;
 			projectDirPath = "";
@@ -357,6 +366,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		131272CC2DD86673007B3B65 /* XCRemoteSwiftPackageReference "UIOnboarding" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/lascic/UIOnboarding.git";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		131272CD2DD86673007B3B65 /* UIOnboarding */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 131272CC2DD86673007B3B65 /* XCRemoteSwiftPackageReference "UIOnboarding" */;
+			productName = UIOnboarding;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 13126DB22DD0AFA9007B3B65 /* Project object */;
 }

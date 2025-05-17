@@ -71,6 +71,9 @@ struct ContentView: View {
     @StateObject private var safariViewModel = SafariViewModel()
     @StateObject private var sceneComparisonViewModel = SceneComparisonViewModel()
     
+    // 用于控制是否显示欢迎界面 
+    @State private var showingOnboarding = false
+    
     var body: some View {
         ZStack {
             // 主内容
@@ -101,8 +104,19 @@ struct ContentView: View {
                             )
                         }
                     }
+                    // ようこそ画面
+                    .fullScreenCover(isPresented: $showingOnboarding) {
+                        OnboardingView(isPresented: $showingOnboarding)
+                            .edgesIgnoringSafeArea(.all)
+                    }
+                    .onAppear {
+                        let hasCompletedOnboarding = UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")
+                        if hasCompletedOnboarding {
+                            showingOnboarding = true
+                        }
+                    }
             }
-            // 顶部中央5pt处的应用标识胶囊
+            // 动态岛支持机型时显示应用标识胶囊
             if isDynamicIslandSupported() {
                 VStack {
                     AppIdentityPillView()
