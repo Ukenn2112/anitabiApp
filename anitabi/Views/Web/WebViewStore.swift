@@ -43,21 +43,34 @@ class WebViewStore: ObservableObject {
         webView.scrollView.pinchGestureRecognizer?.isEnabled = false
         
         // CSS注入
-        let cssString = """
-        @media (max-width: 800px) {
-            .side-search-form, .func-change-logs-fixed, .window-bangumis-box {
-                margin-top: 70px !important;
-                background-image: none !important;
-            }
-            .window-points-box {
-                margin-bottom: 50px !important;
-            }
-            .func-change-logs-fixed {
-                margin-top: 80px !important;
-            }
-        }
+        let excludedModels: Set<String> = ["iPhone12,8", "iPhone14,6"]
+        let currentModel = UIDevice.current.modelIdentifier
+        let cssString = !excludedModels.contains(currentModel) ?
         """
-        
+            @media (max-width: 800px) {
+                .side-search-form, .func-change-logs-fixed, .window-bangumis-box {
+                    margin-top: 70px !important;
+                    background-image: none !important;
+                }
+                .window-points-box {
+                    margin-bottom: 50px !important;
+                }
+                .func-change-logs-fixed {
+                    margin-top: 80px !important;
+                }
+            }
+        """ :
+        """
+            @media (max-width: 800px) {
+                .side-search-form, .func-change-logs-fixed, .window-bangumis-box {
+                    margin-top: 20px !important;
+                    background-image: none !important;
+                }
+                .func-change-logs-fixed {
+                    margin-top: 30px !important;
+                }
+            }
+        """
         // JavaScriptでCSSを注入するための関数
         let jsString = """
         function injectCSS() {
@@ -73,14 +86,12 @@ class WebViewStore: ObservableObject {
             injectCSS();
         }
         """
-        
         // ユーザースクリプトを作成
         let userScript = WKUserScript(
             source: jsString,
             injectionTime: .atDocumentEnd,
             forMainFrameOnly: true
         )
-        
         // スクリプトをウェブビューに追加
         webView.configuration.userContentController.addUserScript(userScript)
         

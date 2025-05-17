@@ -5,10 +5,11 @@
 //  Created by 维安雨轩 on 2025/05/13.
 //
 
-import UIKit
 import SwiftUI
+import UIKit
 import AVFoundation
 import Photos
+import PhotosUI
 
 // MARK: - 主视图
 struct SceneComparisonView: View {
@@ -25,42 +26,58 @@ struct SceneComparisonView: View {
     
     // 状态
     @State private var capturedImage: UIImage? = nil
-    @State private var isProcessingPhoto: Bool = false
-    @State private var isShowingPermissionAlert: Bool = false
+    @State private var isProcessingPhoto = false
+    @State private var isShowingPermissionAlert = false
     @State private var permissionAlertData = PermissionAlertData()
-    @State private var showGeneratedComparison: Bool = false
+    @State private var showGeneratedComparison = false
     @State private var combinedImage: UIImage? = nil
+    @State private var isShowingPhotoPicker = false
+    @State private var currentAnimeSceneURL: URL
+    @State private var currentAnimeSceneImage: UIImage? = nil
+    @State private var isShowingAnimeScenePicker = false
     
     // 视图模型
     @StateObject private var cameraVM = CameraViewModel()
     
-    // MARK: - 主体视图
+    // 初始化
+    init(scenePhotoURL: URL, sceneName: String, sceneColor: String, sceneLocation: String) {
+        self.scenePhotoURL = scenePhotoURL
+        self.sceneName = sceneName
+        self.sceneColor = sceneColor
+        self.sceneLocation = sceneLocation
+        self._currentAnimeSceneURL = State(initialValue: scenePhotoURL)
+    }
     
+    // MARK: - 主体视图
     var body: some View {
         GeometryReader { geometry in
             ZStack {
                 // 背景
                 Color(hex: sceneColor)
-                    .edgesIgnoringSafeArea(.all)
+                    .ignoresSafeArea()
                 
                 // 内容
                 VStack(spacing: 0) {
-                    // 顶部区域
                     headerArea
-                    
-                    // 图片比较区域
                     imagesComparisonArea(geometry: geometry)
-                    
                     Spacer()
-                    
-                    // 底部控制区域
                     controlsArea(geometry: geometry)
                 }
             }
         }
         .navigationBarHidden(true)
         .onAppear(perform: setupOnAppear)
-        .onDisappear(perform: cameraVM.stopSession)
+        .onDisappear {
+            cameraVM.stopSession()
+        }
+        .onAppear {
+            // ComparisonResultViewから戻ってきた時にカメラを再開
+            if !cameraVM.isSessionRunning && capturedImage == nil {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    cameraVM.setupCamera()
+                }
+            }
+        }
         .alert(isPresented: $isShowingPermissionAlert) {
             createPermissionAlert()
         }
@@ -73,23 +90,24 @@ struct SceneComparisonView: View {
                 )
             }
         }
+        .sheet(isPresented: $isShowingPhotoPicker) {
+            ImagePicker { image in
+                self.capturedImage = image
+            }
+        }
+        .task {
+            await setupCameraIfNeeded()
+        }
     }
     
     // MARK: - 子视图组件
     
     private var headerArea: some View {
         HStack {
-            // 返回按钮
             backButton
-            
             Spacer()
-            
-            // 场景名称
             sceneNameLabel
-            
             Spacer()
-            
-            // 信息按钮
             infoButton
         }
         .padding(.top, 8)
@@ -114,15 +132,13 @@ struct SceneComparisonView: View {
             .padding(.vertical, 8)
             .padding(.horizontal, 16)
             .background(Capsule().fill(Color.black.opacity(0.6)))
-            .shadow(color: Color.black.opacity(0.3), radius: 3, x: 0, y: 1)
+            .shadow(radius: 3, x: 0, y: 1)
     }
     
     private var infoButton: some View {
-        Button(action: {
-            if let url = URL(string: "https://www.google.com/maps?q=\(sceneLocation)") {
-                UIApplication.shared.open(url)
-            }
-        }) {
+        Button {
+            openLocationInMaps()
+        } label: {
             Image(systemName: "info.circle")
                 .font(.title3)
                 .foregroundColor(.white)
@@ -135,11 +151,7 @@ struct SceneComparisonView: View {
     private func imagesComparisonArea(geometry: GeometryProxy) -> some View {
         VStack(spacing: 4) {
             // 动漫场景图片
-            SceneImageView(url: scenePhotoURL)
-                .frame(width: max(0, geometry.size.width - 16), height: max(0, geometry.size.height * 0.38))
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .padding(.horizontal, 8)
-                .shadow(color: Color.black.opacity(0.3), radius: 5, x: 0, y: 2)
+            animeSceneImageView(geometry: geometry)
             
             // 用户照片区域
             userPhotoArea(geometry: geometry)
@@ -147,34 +159,98 @@ struct SceneComparisonView: View {
         .padding(.top, 8)
     }
     
-    private func userPhotoArea(geometry: GeometryProxy) -> some View {
-        Group {
-            if let capturedImage = capturedImage {
-                // 显示已拍摄的照片
-                Image(uiImage: capturedImage)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: geometry.size.width - 16, height: geometry.size.height * 0.38)
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    .padding(.horizontal, 8)
-                    .shadow(color: Color.black.opacity(0.3), radius: 5, x: 0, y: 2)
+    private func animeSceneImageView(geometry: GeometryProxy) -> some View {
+        let frameSize = calculateImageFrameSize(for: geometry)
+        
+        return Group {
+            if let animeImage = currentAnimeSceneImage {
+                imageWithOverlay(image: animeImage, frameSize: frameSize) {
+                    isShowingAnimeScenePicker = true
+                }
+            } else {
+                SceneImageView(url: currentAnimeSceneURL)
+                    .frame(width: frameSize.width, height: frameSize.height)
+                    .applyRoundedStyle()
+                    .onTapGesture {
+                        isShowingAnimeScenePicker = true
+                    }
                     .overlay(
-                        capturedImageOverlay,
+                        Button(action: { isShowingAnimeScenePicker = true }) {
+                            Image(systemName: "photo.on.rectangle")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(.white)
+                                .padding(8)
+                                .background(Circle().fill(Color.black.opacity(0.7)))
+                        }
+                        .padding(12),
                         alignment: .topTrailing
                     )
+            }
+        }
+        .sheet(isPresented: $isShowingAnimeScenePicker) {
+            ImagePicker { image in
+                self.currentAnimeSceneImage = image
+            }
+        }
+    }
+    
+    private func userPhotoArea(geometry: GeometryProxy) -> some View {
+        let frameSize = calculateImageFrameSize(for: geometry)
+        
+        return Group {
+            if let capturedImage = capturedImage {
+                imageWithOverlay(image: capturedImage, frameSize: frameSize) {
+                    resetCamera()
+                }
             } else {
-                // 相机预览
                 CameraView(cameraVM: cameraVM)
-                    .frame(width: max(0, geometry.size.width - 16), height: max(0, geometry.size.height * 0.38))
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    .padding(.horizontal, 8)
-                    .shadow(color: Color.black.opacity(0.3), radius: 5, x: 0, y: 2)
+                    .frame(width: frameSize.width, height: frameSize.height)
+                    .applyRoundedStyle()
                     .overlay(
                         cameraOverlayView,
                         alignment: .center
                     )
+                    .onTapGesture {
+                        isShowingPhotoPicker = true
+                    }
+                    .overlay(
+                        Button(action: { isShowingPhotoPicker = true }) {
+                            Image(systemName: "photo.on.rectangle")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(.white)
+                                .padding(8)
+                                .background(Circle().fill(Color.black.opacity(0.7)))
+                        }
+                        .padding(12),
+                        alignment: .topTrailing
+                    )
             }
         }
+    }
+    
+    private func calculateImageFrameSize(for geometry: GeometryProxy) -> CGSize {
+        let width = max(300, geometry.size.width - 16)
+        let height = max(200, geometry.size.height * 0.38)
+        return CGSize(width: width, height: height)
+    }
+    
+    private func imageWithOverlay(image: UIImage, frameSize: CGSize, action: @escaping () -> Void) -> some View {
+        Image(uiImage: image)
+            .resizable()
+            .scaledToFill()
+            .frame(width: frameSize.width, height: frameSize.height)
+            .applyRoundedStyle()
+            .overlay(
+                Button(action: action) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(8)
+                        .background(Circle().fill(Color.black.opacity(0.7)))
+                }
+                .padding(12),
+                alignment: .topTrailing
+            )
     }
     
     private var cameraOverlayView: some View {
@@ -209,15 +285,12 @@ struct SceneComparisonView: View {
                 Button("前往设置") {
                     openSettings()
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 8)
-                .background(Capsule().fill(Color.blue))
-                .foregroundColor(.white)
+                .buttonStyle(.borderedProminent)
+                .controlSize(.regular)
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .padding(.horizontal, 8)
-        .shadow(color: Color.black.opacity(0.3), radius: 5, x: 0, y: 2)
     }
     
     private var cameraSettingUpOverlay: some View {
@@ -234,74 +307,74 @@ struct SceneComparisonView: View {
         }
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .padding(.horizontal, 8)
-        .shadow(color: Color.black.opacity(0.3), radius: 5, x: 0, y: 2)
-    }
-    
-    private var capturedImageOverlay: some View {
-        Button(action: {
-            withAnimation {
-                capturedImage = nil
-                // 重新启动相机
-                cameraVM.setupCamera()
-            }
-        }) {
-            Image(systemName: "xmark")
-                .font(.system(size: 14, weight: .bold))
-                .foregroundColor(.white)
-                .padding(8)
-                .background(Circle().fill(Color.black.opacity(0.7)))
-        }
-        .padding(12)
     }
     
     private func controlsArea(geometry: GeometryProxy) -> some View {
-        VStack(spacing: 8) {
-            // 位置信息
+        VStack(spacing: 16) {
             locationInfoView
 
-            // 相机按钮或比较按钮
             if capturedImage != nil {
                 capturedImageControlButtons
             } else if !cameraVM.cameraPermissionDenied {
-                shutterButton
+                cameraControlsRow
             }
         }
         .padding(.bottom, 16)
     }
     
+    private var cameraControlsRow: some View {
+        ZStack {
+            // 拍照按钮固定在正中间
+            VStack {
+                shutterButton
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+    
     private var capturedImageControlButtons: some View {
         HStack(spacing: 40) {
             // 重拍按钮
-            Button(action: {
-                withAnimation {
-                    capturedImage = nil
-                    // 重新启动相机
-                    cameraVM.setupCamera()
+            Button {
+                resetCamera()
+            } label: {
+                VStack(spacing: 6) {
+                    Image(systemName: "arrow.counterclockwise")
+                        .font(.system(size: 24))
+                        .foregroundColor(.white)
+                        .frame(width: 60, height: 60)
+                        .background(Circle().fill(Color.black.opacity(0.6)))
+                    
+                    Text("重拍")
+                        .font(.caption)
+                        .foregroundColor(.white)
                 }
-            }) {
-                Image(systemName: "arrow.counterclockwise")
-                    .font(.system(size: 32))
-                    .foregroundColor(.white)
-                    .padding()
-                    .background(Circle().fill(Color.red.opacity(0.8)))
             }
             
             // 生成比较按钮
             Button(action: generateComparison) {
-                Image(systemName: "checkmark")
-                    .font(.system(size: 32))
-                    .foregroundColor(.white)
-                    .padding()
-                    .background(Circle().fill(Color.green.opacity(0.8)))
+                VStack(spacing: 6) {
+                    if isProcessingPhoto {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            .frame(width: 60, height: 60)
+                            .background(Circle().fill(Color.black.opacity(0.6)))
+                    } else {
+                        Image(systemName: "wand.and.stars")
+                            .font(.system(size: 24))
+                            .foregroundColor(.white)
+                            .frame(width: 60, height: 60)
+                            .background(Circle().fill(Color.black.opacity(0.6)))
+                    }
+                    
+                    Text("生成对比")
+                        .font(.caption)
+                        .foregroundColor(.white)
+                }
             }
             .disabled(isProcessingPhoto)
-            .overlay(
-                isProcessingPhoto ? 
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                        .padding() : nil
-            )
         }
+        .padding(.top, 8)
     }
     
     private var shutterButton: some View {
@@ -309,15 +382,20 @@ struct SceneComparisonView: View {
             ZStack {
                 Circle()
                     .fill(Color.white)
-                    .frame(width: 72, height: 72)
+                    .frame(width: 70, height: 70)
                 
                 Circle()
-                    .stroke(Color.white, lineWidth: 4)
-                    .frame(width: 86, height: 86)
+                    .fill(Color.black.opacity(0.2))
+                    .frame(width: 64, height: 64)
+                
+                Circle()
+                    .stroke(Color.white, lineWidth: 3)
+                    .frame(width: 80, height: 80)
             }
         }
         .disabled(cameraVM.isSettingUp)
         .opacity(cameraVM.isSettingUp ? 0.5 : 1.0)
+        .padding(.horizontal, 20)
     }
     
     private var locationInfoView: some View {
@@ -334,7 +412,7 @@ struct SceneComparisonView: View {
                 .padding(.vertical, 8)
                 .padding(.horizontal, 16)
                 .background(Capsule().fill(Color.black.opacity(0.6)))
-                .shadow(color: Color.black.opacity(0.3), radius: 3, x: 0, y: 1)
+                .shadow(radius: 3, x: 0, y: 1)
             }
         }
     }
@@ -346,6 +424,25 @@ struct SceneComparisonView: View {
             if denied {
                 showPermissionAlert(for: type)
             }
+        }
+        // Check photo library permissions as well if needed
+    }
+    
+    @MainActor
+    private func setupCameraIfNeeded() async {
+        // Task-based camera setup if needed
+    }
+    
+    private func resetCamera() {
+        withAnimation {
+            capturedImage = nil
+            cameraVM.setupCamera()
+        }
+    }
+    
+    private func openLocationInMaps() {
+        if let url = URL(string: "https://www.google.com/maps?q=\(sceneLocation)") {
+            UIApplication.shared.open(url)
         }
     }
     
@@ -364,21 +461,29 @@ struct SceneComparisonView: View {
     }
     
     private func generateComparison() {
-        guard let userImage = capturedImage else {
-            return
-        }
+        guard let userImage = capturedImage else { return }
 
         isProcessingPhoto = true
         
         Task {
             do {
-                // 异步加载动漫场景图片
-                let (data, response) = try await URLSession.shared.data(from: scenePhotoURL)
+                // 获取动漫场景图片
+                let animeImage: UIImage
                 
-                guard let httpResponse = response as? HTTPURLResponse, 
-                      (200...299).contains(httpResponse.statusCode),
-                      let animeImage = UIImage(data: data) else {
-                    throw URLError(.badServerResponse)
+                if let customImage = currentAnimeSceneImage {
+                    // 使用已加载的自定义图片
+                    animeImage = customImage
+                } else {
+                    // 从URL加载图片
+                    let (data, response) = try await URLSession.shared.data(from: currentAnimeSceneURL)
+                    
+                    guard let httpResponse = response as? HTTPURLResponse, 
+                          (200...299).contains(httpResponse.statusCode),
+                          let loadedImage = UIImage(data: data) else {
+                        throw URLError(.badServerResponse)
+                    }
+                    
+                    animeImage = loadedImage
                 }
                 
                 // 生成对比图片
@@ -431,637 +536,71 @@ struct SceneComparisonView: View {
     }
 }
 
-// MARK: - 辅助视图
+// MARK: - 视图扩展
 
-struct SceneImageView: View {
-    let url: URL
-    
-    var body: some View {
-        AsyncImage(url: url) { phase in
-            switch phase {
-            case .empty:
-                loadingView
-            case .success(let image):
-                image
-                    .resizable()
-                    .scaledToFill()
-                    .clipped()
-            case .failure:
-                errorView
-            @unknown default:
-                EmptyView()
-            }
-        }
-    }
-    
-    private var loadingView: some View {
-        ZStack {
-            Color.black.opacity(0.8)
-            ProgressView()
-                .progressViewStyle(CircularProgressViewStyle(tint: .white))
-        }
-    }
-    
-    private var errorView: some View {
-        ZStack {
-            Color.black.opacity(0.8)
-            VStack(spacing: 12) {
-                Image(systemName: "photo.fill")
-                    .font(.largeTitle)
-                    .foregroundColor(.white)
-                Text("无法加载图片")
-                    .foregroundColor(.white)
-            }
-        }
+extension View {
+    func applyRoundedStyle() -> some View {
+        self
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .padding(.horizontal, 8)
+            .shadow(radius: 5, x: 0, y: 2)
     }
 }
 
-struct CameraView: UIViewRepresentable {
-    let cameraVM: CameraViewModel
+// MARK: - 图片选择器
+struct ImagePicker: UIViewControllerRepresentable {
+    var selectedImage: (UIImage) -> Void
+    @Environment(\.presentationMode) private var presentationMode
     
-    func makeUIView(context: Context) -> UIView {
-        let view = UIView(frame: .zero)
-        view.backgroundColor = .black
+    func makeUIViewController(context: Context) -> PHPickerViewController {
+        var configuration = PHPickerConfiguration()
+        configuration.filter = .images
+        configuration.selectionLimit = 1
         
-        cameraVM.setupPreviewLayer(for: view)
+        let picker = PHPickerViewController(configuration: configuration)
+        picker.delegate = context.coordinator
+        return picker
+    }
+    
+    func updateUIViewController(_ uiViewController: PHPickerViewController, context: Context) {}
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+    
+    class Coordinator: NSObject, PHPickerViewControllerDelegate {
+        let parent: ImagePicker
         
-        return view
-    }
-    
-    func updateUIView(_ uiView: UIView, context: Context) {
-        cameraVM.updatePreviewFrame(for: uiView)
-    }
-}
-
-struct ComparisonResultView: View {
-    let comparisonImage: UIImage
-    let sceneName: String
-    let dismiss: () -> Void
-    
-    @State private var isSaving = false
-    @State private var showShareSheet = false
-    
-    var body: some View {
-        NavigationView {
-            ZStack {
-                Color.black.edgesIgnoringSafeArea(.all)
-                
-                VStack {
-                    Image(uiImage: comparisonImage)
-                        .resizable()
-                        .scaledToFit()
-                        .padding()
-                    
-                    HStack(spacing: 30) {
-                        saveButton
-                        shareButton
-                    }
-                    .padding(.bottom, 30)
-                }
-            }
-            .navigationTitle("\(sceneName) 对比")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("关闭", action: dismiss)
-                }
-            }
-            .sheet(isPresented: $showShareSheet) {
-                ShareSheet(items: [comparisonImage])
-            }
+        init(_ parent: ImagePicker) {
+            self.parent = parent
         }
-    }
-    
-    private var saveButton: some View {
-        Button(action: saveImageToGallery) {
-            VStack {
-                Image(systemName: isSaving ? "hourglass" : "square.and.arrow.down")
-                    .font(.system(size: 22))
-                    .foregroundColor(.white)
-                Text("保存")
-                    .font(.caption)
-                    .foregroundColor(.white)
-            }
-            .frame(width: 60, height: 60)
-            .background(Circle().fill(Color.blue.opacity(0.8)))
-        }
-        .disabled(isSaving)
-    }
-    
-    private var shareButton: some View {
-        Button(action: { showShareSheet = true }) {
-            VStack {
-                Image(systemName: "square.and.arrow.up")
-                    .font(.system(size: 22))
-                    .foregroundColor(.white)
-                Text("分享")
-                    .font(.caption)
-                    .foregroundColor(.white)
-            }
-            .frame(width: 60, height: 60)
-            .background(Circle().fill(Color.green.opacity(0.8)))
-        }
-    }
-    
-    private func saveImageToGallery() {
-        isSaving = true
         
-        PHPhotoLibrary.requestAuthorization { status in
-            if status == .authorized {
-                UIImageWriteToSavedPhotosAlbum(comparisonImage, nil, nil, nil)
-            }
+        func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+            parent.presentationMode.wrappedValue.dismiss()
             
-            // 模拟保存延迟以获得更好的用户体验
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-                isSaving = false
-            }
-        }
-    }
-}
-
-// MARK: - 支持结构体
-
-struct ShareSheet: UIViewControllerRepresentable {
-    var items: [Any]
-    
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        let controller = UIActivityViewController(activityItems: items, applicationActivities: nil)
-        return controller
-    }
-    
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
-}
-
-struct PermissionAlertData {
-    var title: String = ""
-    var message: String = ""
-}
-
-// MARK: - 视图模型
-
-class CameraViewModel: ObservableObject {
-    private let captureSession = AVCaptureSession()
-    private let photoOutput = AVCapturePhotoOutput()
-    private var previewLayer: AVCaptureVideoPreviewLayer?
-    private let sessionQueue = DispatchQueue(label: "com.meikenn.anitabi.sessionQueue")
-    // 添加属性来保持对PhotoCaptureDelegate的引用
-    private var photoDelegate: PhotoCaptureDelegate?
-    
-    @Published var isSettingUp: Bool = true
-    @Published var cameraPermissionDenied: Bool = false
-    @Published var photoLibraryPermissionDenied: Bool = false
-    
-    func checkPermissions(completion: @escaping (Bool, String) -> Void) {
-        checkCameraAuthorization { [weak self] denied in
-            if denied {
-                DispatchQueue.main.async {
-                    self?.cameraPermissionDenied = true
-                    completion(true, "相机")
+            guard let result = results.first else { return }
+            
+            result.itemProvider.loadObject(ofClass: UIImage.self) { (object, error) in
+                if let error = error {
+                    print("图片加载错误: \(error.localizedDescription)")
+                    return
                 }
-            } else {
-                self?.setupCamera()
-                self?.checkPhotoLibraryAuthorization { denied in
-                    if denied {
-                        DispatchQueue.main.async {
-                            self?.photoLibraryPermissionDenied = true
-                            completion(true, "相册")
-                        }
+                
+                if let image = object as? UIImage {
+                    DispatchQueue.main.async {
+                        self.parent.selectedImage(image)
                     }
                 }
             }
         }
     }
-    
-    private func checkCameraAuthorization(completion: @escaping (Bool) -> Void) {
-        switch AVCaptureDevice.authorizationStatus(for: .video) {
-        case .authorized:
-            completion(false)
-        case .notDetermined:
-            AVCaptureDevice.requestAccess(for: .video) { granted in
-                completion(!granted)
-            }
-        case .denied, .restricted:
-            completion(true)
-        @unknown default:
-            completion(true)
-        }
-    }
-    
-    private func checkPhotoLibraryAuthorization(completion: @escaping (Bool) -> Void) {
-        switch PHPhotoLibrary.authorizationStatus() {
-        case .authorized, .limited:
-            completion(false)
-        case .notDetermined:
-            PHPhotoLibrary.requestAuthorization { status in
-                completion(status != .authorized && status != .limited)
-            }
-        case .denied, .restricted:
-            completion(true)
-        @unknown default:
-            completion(true)
-        }
-    }
-    
-    func setupCamera() {
-        isSettingUp = true
-        
-        sessionQueue.async { [weak self] in
-            guard let self = self else { return }
-            
-            self.resetCaptureSession()
-            self.configureCaptureSession()
-        }
-    }
-    
-    private func resetCaptureSession() {
-        // 如果会话已配置，则重置
-        if !captureSession.inputs.isEmpty {
-            captureSession.beginConfiguration()
-            captureSession.inputs.forEach { captureSession.removeInput($0) }
-            captureSession.outputs.forEach { captureSession.removeOutput($0) }
-            captureSession.commitConfiguration()
-        }
-    }
-    
-    private func configureCaptureSession() {
-        captureSession.beginConfiguration()
-        
-        // 设置会话质量
-        if captureSession.canSetSessionPreset(.photo) {
-            captureSession.sessionPreset = .photo
-        }
-        
-        // 获取后置摄像头
-        guard let videoDevice = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) else {
-            handleCameraSetupFailure("Failed to get back camera")
-            return
-        }
-        
-        do {
-            // 创建输入
-            let videoInput = try AVCaptureDeviceInput(device: videoDevice)
-            
-            // 添加输入
-            guard captureSession.canAddInput(videoInput) else {
-                handleCameraSetupFailure("Failed to add video input")
-                return
-            }
-            captureSession.addInput(videoInput)
-            
-            // 添加输出
-            guard captureSession.canAddOutput(photoOutput) else {
-                handleCameraSetupFailure("Failed to add photo output")
-                return
-            }
-            captureSession.addOutput(photoOutput)
-            
-            // 提交配置
-            captureSession.commitConfiguration()
-            
-            // 在后台启动会话
-            captureSession.startRunning()
-            
-            DispatchQueue.main.async {
-                self.isSettingUp = false
-            }
-        } catch {
-            handleCameraSetupFailure("Error setting up camera: \(error.localizedDescription)")
-        }
-    }
-    
-    private func handleCameraSetupFailure(_ message: String) {
-        print(message)
-        captureSession.commitConfiguration()
-        DispatchQueue.main.async {
-            self.isSettingUp = false
-        }
-    }
-    
-    func setupPreviewLayer(for view: UIView) {
-        sessionQueue.async { [weak self] in
-            guard let self = self else { return }
-            
-            if self.previewLayer == nil {
-                let layer = AVCaptureVideoPreviewLayer(session: self.captureSession)
-                layer.videoGravity = .resizeAspectFill
-                
-                DispatchQueue.main.async {
-                    layer.frame = view.bounds
-                    view.layer.addSublayer(layer)
-                    self.previewLayer = layer
-                }
-            }
-        }
-    }
-    
-    func updatePreviewFrame(for view: UIView) {
-        DispatchQueue.main.async { [weak self] in
-            guard let layer = self?.previewLayer else { return }
-            layer.frame = view.bounds
-        }
-    }
-    
-    func stopSession() {
-        sessionQueue.async { [weak self] in
-            guard let self = self, self.captureSession.isRunning else { return }
-            self.captureSession.stopRunning()
-            // 清理代理引用
-            self.photoDelegate = nil
-        }
-    }
-    
-    func capturePhoto(completion: @escaping (UIImage?) -> Void) {
-        sessionQueue.async { [weak self] in
-            guard let self = self, self.captureSession.isRunning else {
-                DispatchQueue.main.async {
-                    completion(nil)
-                }
-                return
-            }
-            
-            let settings = AVCapturePhotoSettings(format: [AVVideoCodecKey: AVVideoCodecType.jpeg])
-            
-            // 使用属性保持对代理的引用
-            self.photoDelegate = PhotoCaptureDelegate { image in
-                DispatchQueue.main.async {
-                    completion(image)
-                    // 任务完成后清理引用，避免内存泄漏
-                    self.photoDelegate = nil
-                }
-            }
-            
-            self.photoOutput.capturePhoto(with: settings, delegate: self.photoDelegate!)
-        }
-    }
 }
 
-// MARK: - 辅助类
-
-class PhotoCaptureDelegate: NSObject, AVCapturePhotoCaptureDelegate {
-    private let completion: (UIImage?) -> Void
-    
-    init(completion: @escaping (UIImage?) -> Void) {
-        self.completion = completion
-        super.init()
-    }
-    
-    func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
-        if let error = error {
-            print("Error capturing photo: \(error.localizedDescription)")
-            completion(nil)
-            return
-        }
-        
-        // 获取图像数据
-        guard let imageData = photo.fileDataRepresentation(), 
-              let image = UIImage(data: imageData) else {
-            print("Failed to get photo data")
-            completion(nil)
-            return
-        }
-        
-        // 保存到相册
-        saveCapturedImageToGallery(image)
-        
-        // 返回图像
-        completion(image)
-    }
-    
-    private func saveCapturedImageToGallery(_ image: UIImage) {
-        PHPhotoLibrary.shared().performChanges {
-            PHAssetChangeRequest.creationRequestForAsset(from: image)
-        } completionHandler: { success, error in
-            if let error = error {
-                print("Error saving photo to gallery: \(error.localizedDescription)")
-            }
-        }
-    }
-}
-
-// MARK: - 对比图生成器
-
-class ComparisonImageGenerator {
-    func generateComparisonImage(
-        animeImage: UIImage,
-        userImage: UIImage?,
-        sceneName: String,
-        sceneColor: UIColor,
-        sceneLocation: String
-    ) -> UIImage? {
-        // 常量定义
-        let cornerRadius: CGFloat = 12
-        let horizontalPadding: CGFloat = 20
-        let topPadding: CGFloat = 24
-        let bottomPadding: CGFloat = 24
-        let imageSpacing: CGFloat = 12
-        let iconSize: CGFloat = 28
-        let iconTextSpacing: CGFloat = 10
-        let titleFontSize: CGFloat = 20
-        let locationFontSize: CGFloat = 16
-        
-        // 固定animeImage的显示尺寸
-        let fixedAnimeWidth: CGFloat = 640
-        let fixedAnimeHeight: CGFloat = 360
-        
-        // 计算画布尺寸
-        let contentWidth = fixedAnimeWidth
-        let canvasWidth = contentWidth + (horizontalPadding * 2)
-        
-        // 顶部和底部元素的高度
-        let topElementHeight = max(iconSize, titleFontSize + 6) + 6
-        let bottomElementHeight = max(iconSize, locationFontSize + 6) + 10
-        
-        // 画布总高度
-        let totalHeight = topPadding + topElementHeight + fixedAnimeHeight + 
-                        imageSpacing + fixedAnimeHeight + bottomElementHeight + bottomPadding
-        
-        let canvasSize = CGSize(width: canvasWidth, height: totalHeight)
-        
-        // 创建图像渲染器
-        let renderer = UIGraphicsImageRenderer(size: canvasSize)
-        
-        return renderer.image { context in
-            let ctx = context.cgContext
-            
-            // 绘制背景和圆角
-            let backgroundRect = CGRect(origin: .zero, size: canvasSize)
-            let backgroundPath = UIBezierPath(roundedRect: backgroundRect, cornerRadius: cornerRadius)
-            sceneColor.setFill()
-            backgroundPath.fill()
-            
-            // 绘制favicon和场景名称
-            if let favicon = UIImage(named: "favicon") {
-                let faviconRect = CGRect(
-                    x: horizontalPadding, 
-                    y: topPadding, 
-                    width: iconSize, 
-                    height: iconSize
-                )
-                favicon.draw(in: faviconRect)
-                
-                // 绘制场景名称文本
-                let titleAttributes: [NSAttributedString.Key: Any] = [
-                    .font: UIFont.systemFont(ofSize: titleFontSize, weight: .medium),
-                    .foregroundColor: UIColor.white,
-                    .shadow: {
-                        let shadow = NSShadow()
-                        shadow.shadowColor = UIColor.black.withAlphaComponent(0.5)
-                        shadow.shadowOffset = CGSize(width: 1, height: 1)
-                        shadow.shadowBlurRadius = 3
-                        return shadow
-                    }()
-                ]
-                
-                let titleRect = CGRect(
-                    x: horizontalPadding + iconSize + iconTextSpacing,
-                    y: topPadding + (iconSize - titleFontSize) / 2 - 2,
-                    width: contentWidth - iconSize - iconTextSpacing,
-                    height: titleFontSize + 4
-                )
-                
-                sceneName.draw(in: titleRect, withAttributes: titleAttributes)
-            }
-            
-            // 绘制固定尺寸的anime图像区域
-            let animeImageRect = CGRect(
-                x: horizontalPadding,
-                y: topPadding + topElementHeight + 8,
-                width: fixedAnimeWidth,
-                height: fixedAnimeHeight
-            )
-            
-            // 创建用于裁剪的圆角路径
-            let animeImagePath = UIBezierPath(roundedRect: animeImageRect, cornerRadius: cornerRadius)
-            ctx.saveGState()
-            animeImagePath.addClip()
-            
-            // 计算animeImage的缩放比例，优先填满宽度，其次是高度
-            let animeImageAspect = animeImage.size.width / animeImage.size.height
-            let targetAspect = fixedAnimeWidth / fixedAnimeHeight
-            
-            var drawRectAnime = animeImageRect
-            
-            if animeImageAspect > targetAspect {
-                // 原图比例更宽，以高度为基准缩放
-                let scaledWidth = fixedAnimeHeight * animeImageAspect
-                drawRectAnime.origin.x = animeImageRect.minX + (fixedAnimeWidth - scaledWidth) / 2
-                drawRectAnime.size.width = scaledWidth
-            } else {
-                // 原图比例更窄，以宽度为基准缩放
-                let scaledHeight = fixedAnimeWidth / animeImageAspect
-                drawRectAnime.origin.y = animeImageRect.minY + (fixedAnimeHeight - scaledHeight) / 2
-                drawRectAnime.size.height = scaledHeight
-            }
-            
-            animeImage.draw(in: drawRectAnime)
-            ctx.restoreGState()
-            
-            // 绘制用户图像（如果可用）
-            if let userImage = userImage {
-                let userImageRect = CGRect(
-                    x: horizontalPadding,
-                    y: animeImageRect.maxY + imageSpacing,
-                    width: fixedAnimeWidth,
-                    height: fixedAnimeHeight
-                )
-                
-                let userImagePath = UIBezierPath(roundedRect: userImageRect, cornerRadius: cornerRadius)
-                ctx.saveGState()
-                userImagePath.addClip()
-                
-                // 计算userImage的缩放比例，同样优先填满宽度，其次是高度
-                let userImageAspect = userImage.size.width / userImage.size.height
-                
-                var drawRectUser = userImageRect
-                
-                if userImageAspect > targetAspect {
-                    // 原图比例更宽，以高度为基准缩放
-                    let scaledWidth = fixedAnimeHeight * userImageAspect
-                    drawRectUser.origin.x = userImageRect.minX + (fixedAnimeWidth - scaledWidth) / 2
-                    drawRectUser.size.width = scaledWidth
-                } else {
-                    // 原图比例更窄，以宽度为基准缩放
-                    let scaledHeight = fixedAnimeWidth / userImageAspect
-                    drawRectUser.origin.y = userImageRect.minY + (fixedAnimeHeight - scaledHeight) / 2
-                    drawRectUser.size.height = scaledHeight
-                }
-                
-                userImage.draw(in: drawRectUser)
-                ctx.restoreGState()
-                
-                // 绘制位置坐标
-                let locationAttributes: [NSAttributedString.Key: Any] = [
-                    .font: UIFont.monospacedSystemFont(ofSize: locationFontSize, weight: .regular),
-                    .foregroundColor: UIColor.white
-                ]
-                
-                // 计算位置文本大小
-                let locationTextSize = sceneLocation.size(withAttributes: locationAttributes)
-                
-                // 放置位置图标，基于文本宽度确保完全可见
-                if let locationIcon = UIImage(systemName: "mappin.and.ellipse") {
-                    let iconTint = locationIcon.withTintColor(.white, renderingMode: .alwaysOriginal)
-                    
-                    // 位置从右侧开始，为文本留出空间
-                    let locationIconRect = CGRect(
-                        x: canvasWidth - horizontalPadding - locationTextSize.width - iconTextSpacing - iconSize,
-                        y: userImageRect.maxY + bottomElementHeight - iconSize,
-                        width: iconSize,
-                        height: iconSize
-                    )
-                    iconTint.draw(in: locationIconRect)
-                    
-                    // 在图标旁边绘制位置文本
-                    let locationRect = CGRect(
-                        x: locationIconRect.maxX + iconTextSpacing,
-                        y: locationIconRect.minY + (iconSize - locationFontSize) / 2 - 2,
-                        width: locationTextSize.width,
-                        height: locationTextSize.height
-                    )
-                    
-                    sceneLocation.draw(in: locationRect, withAttributes: locationAttributes)
-                }
-            }
-        }
-    }
-}
-
-// MARK: - Helper Extensions
-
-extension Color {
-    init(hex: String) {
-        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-        var int: UInt64 = 0
-        Scanner(string: hex).scanHexInt64(&int)
-        let a, r, g, b: UInt64
-        switch hex.count {
-        case 3: // RGB (12-bit)
-            (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
-        case 6: // RGB (24-bit)
-            (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
-        case 8: // ARGB (32-bit)
-            (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
-        default:
-            (a, r, g, b) = (255, 0, 0, 0)
-        }
-        self.init(
-            .sRGB,
-            red: Double(r) / 255,
-            green: Double(g) / 255,
-            blue: Double(b) / 255,
-            opacity: Double(a) / 255
-        )
-    }
-}
-
-// MARK: - Preview
-struct SceneComparisonView_Previews: PreviewProvider {
-    static var previews: some View {
-        SceneComparisonView(
-            scenePhotoURL: URL(string: "https://image.anitabi.cn/points/272510/39zlm4tj.jpg")!,
-            sceneName: "东京塔夜景",
-            sceneColor: "FF5733",
-            sceneLocation: "东京都港区芝公园4丁目"
-        )
-    }
+#Preview {
+    SceneComparisonView(
+        scenePhotoURL: URL(string: "https://image.anitabi.cn/points/272510/39zlm4tj.jpg")!,
+        sceneName: "东京塔夜景",
+        sceneColor: "FF5733",
+        sceneLocation: "东京都港区芝公园4丁目"
+    )
 }
