@@ -98,6 +98,10 @@ extension Bundle {
     var displayName: String? {
         return infoDictionary?["CFBundleDisplayName"] as? String
     }
+
+    var versionString: String? {
+        return infoDictionary?["CFBundleShortVersionString"] as? String
+    }
 }
 
 // OnboardingView 是一个 UIViewControllerRepresentable，用于在 SwiftUI 中使用 UIOnboardingViewController
@@ -117,7 +121,7 @@ struct OnboardingView: UIViewControllerRepresentable {
             self.parent = parent
         }
 
-        // UIOnboardingViewControllerDelegate 方法，当用户点击“继续”按钮时被调用
+        // UIOnboardingViewControllerDelegate 方法，当用户点击"继续"按钮时被调用
         func didFinishOnboarding(onboardingViewController: UIOnboardingViewController) {
             // 在这里处理完成引导后的逻辑，例如设置 UserDefaults
             UserDefaults.standard.set(true, forKey: "hasCompletedOnboarding") // 设置 UserDefaults 标记用户已完成引导

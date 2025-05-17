@@ -41,6 +41,9 @@ class WebViewStore: ObservableObject {
         webView = WKWebView(frame: .zero, configuration: configuration)
         webView.scrollView.contentInsetAdjustmentBehavior = .never
         webView.scrollView.pinchGestureRecognizer?.isEnabled = false
+        // 设置自定义UA
+        let version = Bundle.main.versionString ?? "unknown"
+        webView.customUserAgent = "Ukenn2112/anitabiApp/\(version) (iOS) (https://github.com/Ukenn2112/anitabiApp)"
         
         // CSS注入
         let excludedModels: Set<String> = ["iPhone12,8", "iPhone14,6"]
