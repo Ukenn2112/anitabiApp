@@ -111,7 +111,7 @@ struct ContentView: View {
                     }
                     .onAppear {
                         let hasCompletedOnboarding = UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")
-                        if hasCompletedOnboarding {
+                        if !hasCompletedOnboarding {
                             showingOnboarding = true
                         }
                     }
