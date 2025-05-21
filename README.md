@@ -3,6 +3,8 @@
 <img src="https://toolbox.marketingtools.apple.com/api/v2/badges/download-on-the-app-store/black/ja-jp?releaseDate=1742083200" alt="App Store" align="right" style="width: 204px; height: 62px; vertical-align: middle; object-fit: contain;" />
 </a>
 
+# 此 App 相关帮助与支持（The questions and request support）请前往： https://github.com/Ukenn2112/anitabiApp/issues
+
 ## Anitabi Map - 动画巡礼地图
 
 告别繁琐的行前准备，轻松开启你的动画圣地巡礼之旅！
@@ -35,10 +37,6 @@ Anitabi Map 动画巡礼地图 是一款专为喜爱动画、漫画、游戏、�
 在使用过程中遇到任何问题，或有关于流程、概念上的建议，都欢迎随时与我们联系，帮助我们改进应用体验。
 
 欢迎下载 Anitabi map，加入全球巡礼人的大家庭，一起探索和记录那些存在于现实世界的“圣地”吧！
-
-### 帮助与支持:
-
-App 相关帮助与支持请前往： https://github.com/Ukenn2112/anitabiApp/issues
 
 ### 隐私政策:
 
