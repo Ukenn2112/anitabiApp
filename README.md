@@ -4,6 +4,7 @@
 </a>
 
 # 此 App 相关帮助与支持（The questions and request support）请前往： https://github.com/Ukenn2112/anitabiApp/issues
+# 关于巡礼地图相关帮助与支持 请前往： https://github.com/anitabi/anitabi.cn-document/issues
 
 ## Anitabi Map - 动画巡礼地图
 
