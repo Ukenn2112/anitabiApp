@@ -87,7 +87,10 @@ struct ContentView: View {
                     // SafariView
                     .sheet(isPresented: $safariViewModel.isSafariPresented) {
                         if let url = safariViewModel.safariURL {
-                            SafariView(url: url)
+                            SafariView(url: url, onClose: {
+                                safariViewModel.closeSafari()
+                            })
+                                .edgesIgnoringSafeArea(.all)
                         }
                     }
                     // シーン比較ビューへのナビゲーション

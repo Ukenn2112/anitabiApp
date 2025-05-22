@@ -137,9 +137,9 @@ struct SceneComparisonView: View {
     
     private var infoButton: some View {
         Button {
-            openLocationInMaps()
+            openExternalGenerator()
         } label: {
-            Image(systemName: "info.circle")
+            Image(systemName: "safari")
                 .font(.title3)
                 .foregroundColor(.white)
                 .padding(10)
@@ -440,8 +440,8 @@ struct SceneComparisonView: View {
         }
     }
     
-    private func openLocationInMaps() {
-        if let url = URL(string: "https://www.google.com/maps?q=\(sceneLocation)") {
+    private func openExternalGenerator() {
+        if let url = URL(string: "https://lab.magiconch.com/image-merge/?url=\(scenePhotoURL)") {
             UIApplication.shared.open(url)
         }
     }

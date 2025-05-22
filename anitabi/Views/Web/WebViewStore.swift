@@ -46,10 +46,42 @@ class WebViewStore: ObservableObject {
         webView.customUserAgent = "Ukenn2112/anitabiApp/\(version) (iOS) (https://github.com/Ukenn2112/anitabiApp)"
         
         // CSS注入
-        let excludedModels: Set<String> = ["iPhone12,8", "iPhone14,6"]
+        let excludedModels: Set<String> = [
+              "iPhone12,8", "iPhone14,6", // iPhone SE 2/3
+              "iPad7,3", "iPad7,4",                   // iPad Pro 10.5-inch (第1世代)
+              "iPad7,5", "iPad7,6",                   // iPad 6th Gen
+              "iPad7,11", "iPad7,12",                 // iPad 7th Gen
+              "iPad8,1", "iPad8,2", "iPad8,3", "iPad8,4",   // iPad Pro 11-inch (第1世代)
+              "iPad8,5", "iPad8,6", "iPad8,7", "iPad8,8",   // iPad Pro 12.9-inch (第3世代)
+              "iPad8,9", "iPad8,10",                 // iPad Pro 11-inch (第2世代)
+              "iPad8,11", "iPad8,12",                // iPad Pro 12.9-inch (第4世代)
+              "iPad11,1", "iPad11,2",                // iPad mini 5th Gen
+              "iPad11,3", "iPad11,4",                // iPad Air 3rd Gen
+              "iPad11,6", "iPad11,7",                // iPad 8th Gen
+              "iPad12,1", "iPad12,2",                // iPad 9th Gen
+              "iPad13,1", "iPad13,2",                // iPad Air 4th Gen
+              "iPad13,4", "iPad13,5", "iPad13,6", "iPad13,7", // iPad Pro 11-inch (第3世代)
+              "iPad13,8", "iPad13,9", "iPad13,10", "iPad13,11", // iPad Pro 12.9-inch (第5世代)
+              "iPad13,16", "iPad13,17",              // iPad Air 5th Gen
+              "iPad13,18", "iPad13,19",              // iPad 10th Gen
+              "iPad14,1", "iPad14,2",                // iPad mini 6th Gen
+              "iPad14,3", "iPad14,4",                // iPad Pro 11-inch (第4世代)
+              "iPad14,5", "iPad14,6",                // iPad Pro 12.9-inch (第6世代)
+              "iPad14,8", "iPad14,9",                // iPad Air 11-inch (第6世代)
+              "iPad14,10", "iPad14,11",              // iPad Air 13-inch (第6世代)
+              "iPad15,3", "iPad15,4",                // iPad Air 11-inch (第7世代)
+              "iPad15,5", "iPad15,6",                // iPad Air 13-inch (第7世代)
+              "iPad15,7", "iPad15,8",                // iPad 11th Gen
+              "iPad16,1", "iPad16,2",                // iPad mini 7th Gen
+              "iPad16,3", "iPad16,4",                // iPad Pro 11-inch (第5世代)
+              "iPad16,5", "iPad16,6"                 // iPad Pro 12.9-inch (第7世代)
+        ]
         let currentModel = UIDevice.current.modelIdentifier
         let cssString = !excludedModels.contains(currentModel) ?
         """
+            a[href*="sponsor.png"] {
+              display: none !important;
+            }
             @media (max-width: 800px) {
                 .side-search-form, .func-change-logs-fixed, .window-bangumis-box {
                     margin-top: 70px !important;
@@ -64,6 +96,9 @@ class WebViewStore: ObservableObject {
             }
         """ :
         """
+            a[href*="sponsor.png"] {
+              display: none !important;
+            }
             @media (max-width: 800px) {
                 .side-search-form, .func-change-logs-fixed, .window-bangumis-box {
                     margin-top: 20px !important;
