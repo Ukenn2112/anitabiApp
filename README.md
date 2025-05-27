@@ -1,7 +1,6 @@
-<img src="https://github.com/user-attachments/assets/5bef883c-1ce2-4bea-ac16-41258fe8f24c" align="left" width="65"> <h1>Anitabi for swiftUI WebView App</h1>
-<a href="https://apps.apple.com/us/app/anitabi/id6745898838" style="display: inline-block;">
+<img src="https://github.com/user-attachments/assets/5bef883c-1ce2-4bea-ac16-41258fe8f24c" align="left" width="65"> <h1>Anitabi for swiftUI WebView App</h1><a href="https://apps.apple.com/us/app/anitabi/id6745898838" style="display: inline-block;">
 <img src="https://toolbox.marketingtools.apple.com/api/v2/badges/download-on-the-app-store/black/ja-jp?releaseDate=1742083200" alt="App Store" align="right" style="width: 204px; height: 62px; vertical-align: middle; object-fit: contain;" />
-</a>
+</a></br>
 
 ## Anitabi Map - 动画巡礼地图
 
