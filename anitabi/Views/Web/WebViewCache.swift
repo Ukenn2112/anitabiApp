@@ -16,8 +16,9 @@ class ResourceCacheManager {
     private let cacheValidityPeriod: TimeInterval = 3600 // 1時間（秒単位）
     
     private let cachableResources = [
-        "https://anitabi.cn/api/g.svg",
-        "https://anitabi.cn/mapbox/aniki/aniki@2x.png"
+        "https://anitabi.cn/mapbox/anitabi/ani@2x.png",
+        "https://anitabi.cn/mapbox/anitabi/ani@2x.csv",
+        "https://anitabi.cn/images/bangumi-icons.webp"
     ]
     
     func isCachableResource(_ urlString: String) -> Bool {
