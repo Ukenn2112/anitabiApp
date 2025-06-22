@@ -68,26 +68,24 @@ class CacheURLSchemeHandler: NSObject, WKURLSchemeHandler {
         
         // キャッシュになければ通常のリクエストを行い、キャッシュに保存
         if let originalURL = URL(string: urlString) {
-            let task = URLSession.shared.dataTask(with: originalURL) { data, response, error in
-                if let error = error {
-                    urlSchemeTask.didFailWithError(error)
-                    return
+            Task {
+                do {
+                    let (data, response) = try await URLSession.shared.data(from: originalURL)
+                    await MainActor.run {
+                        // キャッシュに保存
+                        ResourceCacheManager.shared.cacheData(data, for: urlString)
+                        
+                        // 応答を返す
+                        urlSchemeTask.didReceive(response)
+                        urlSchemeTask.didReceive(data)
+                        urlSchemeTask.didFinish()
+                    }
+                } catch {
+                    await MainActor.run {
+                        urlSchemeTask.didFailWithError(error)
+                    }
                 }
-                
-                guard let data = data, let response = response else {
-                    urlSchemeTask.didFailWithError(NSError(domain: "No data", code: 0, userInfo: nil))
-                    return
-                }
-                
-                // キャッシュに保存
-                ResourceCacheManager.shared.cacheData(data, for: urlString)
-                
-                // 応答を返す
-                urlSchemeTask.didReceive(response)
-                urlSchemeTask.didReceive(data)
-                urlSchemeTask.didFinish()
             }
-            task.resume()
         } else {
             urlSchemeTask.didFailWithError(NSError(domain: "Invalid URL", code: 0, userInfo: nil))
         }
