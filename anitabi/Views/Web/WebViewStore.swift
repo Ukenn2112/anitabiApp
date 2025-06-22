@@ -83,6 +83,9 @@ class WebViewStore: ObservableObject {
               display: none !important;
             }
             @media (max-width: 800px) {
+                .map-box {
+                    --mobile-map-side-height: 45vh;
+                }
                 .side-search-form, .func-change-logs-fixed, .window-bangumis-box {
                     margin-top: 70px !important;
                     background-image: none !important;
@@ -100,6 +103,9 @@ class WebViewStore: ObservableObject {
               display: none !important;
             }
             @media (max-width: 800px) {
+                .map-box {
+                    --mobile-map-side-height: 45vh;
+                }
                 .side-search-form, .func-change-logs-fixed, .window-bangumis-box {
                     margin-top: 20px !important;
                     background-image: none !important;
@@ -152,35 +158,6 @@ class WebViewStore: ObservableObject {
         webView.configuration.userContentController.add(messageHandler, name: "urlHandler")
         webView.configuration.userContentController.add(messageHandler, name: "compareImageHandler")
 
-        // 「原图」リンクと「做对比图」リンクをインターセプトするJavaScript
-        let imageInterceptionScript = """
-        document.addEventListener('click', function(e) {
-            // クリックされた要素またはその親要素を探索
-            let target = e.target;
-            let maxDepth = 5;  // 検索する深さの上限
-            let depth = 0;
-            
-            while (target && depth < maxDepth) {
-                // リンクかどうか確認
-                if (target.tagName === 'A') {
-                    // 「原图」リンクの検出と処理
-                    if (target.textContent.trim() === '原图') {
-                        e.preventDefault();  // デフォルトのリンク動作を防止
-                        const imageUrl = target.getAttribute('href');
-                        if (imageUrl) {
-                            window.webkit.messageHandlers.imageHandler.postMessage(imageUrl);
-                            return;
-                        }
-                    }
-                }
-                
-                // 親要素へ移動
-                target = target.parentElement;
-                depth++;
-            }
-        }, true);  // キャプチャフェーズでイベントをリッスン
-        """
-        
         // window.openをハイジャックするスクリプト（相対パスを絶対パスに変換）
         let windowOpenInterceptScript = """
         // window.openをハイジャック
@@ -205,6 +182,12 @@ class WebViewStore: ObservableObject {
                         window.webkit.messageHandlers.compareImageHandler.postMessage(fullUrl);
                         return null;
                     }
+
+                    // 「原图」リンクの検出と処理
+                    if (fullUrl.includes('https://image.anitabi.cn')) {
+                        window.webkit.messageHandlers.imageHandler.postMessage(fullUrl);
+                        return null;
+                    }
                     
                     // 完全なURLをハンドラーに送信
                     window.webkit.messageHandlers.urlHandler.postMessage(fullUrl);
@@ -221,14 +204,6 @@ class WebViewStore: ObservableObject {
             return originalWindowOpen.apply(this, arguments);
         };
         """
-        
-        // 画像リンクスクリプトの追加と「做对比图」リンクの検出
-        let imageInterceptUserScript = WKUserScript(
-            source: imageInterceptionScript,
-            injectionTime: .atDocumentEnd,
-            forMainFrameOnly: false
-        )
-        webView.configuration.userContentController.addUserScript(imageInterceptUserScript)
         
         // ウィンドウオープンスクリプトの追加
         let windowOpenUserScript = WKUserScript(

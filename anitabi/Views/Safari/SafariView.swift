@@ -11,12 +11,8 @@ import WebKit
 struct SafariView: UIViewRepresentable {
     let url: URL
     var cssString: String = """
-        .func-header-box nav a.router-link-active {
-            display: none !important;
-        }
-        .func-header-box nav a[href*="bangumi"] {
-            display: none !important;
-        }
+        .func-header-box nav a.router-link-active,
+        .func-header-box nav a[href*="bangumi"],
         a[href*="sponsor.png"] {
             display: none !important;
         }
